@@ -6,3 +6,4 @@ define('LOGFILEDIR', LOGBASE_DIR );
 define('LOGFILE', LOGFILEDIR . 'z-push.log');
 define('LOGERRORFILE', LOGFILEDIR . 'z-push-error.log');
 define('LOGLEVEL', {{$webtop{'ActiveSyncLog'} || 'LOGLEVEL_ERROR'}});
+define('SONICLE_REST_BASE_URL','http://localhost:28080/webtop5');
