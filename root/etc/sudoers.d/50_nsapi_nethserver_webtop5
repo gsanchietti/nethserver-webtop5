@@ -1,0 +1,7 @@
+#
+# nsapi_nethserver_webtop5
+#
+Cmnd_Alias NSAPI_NETHSERVER_WEBTOP5 = \
+  /usr/libexec/nethserver/api/nethserver-webtop5/read
+￼￼
+Defaults!NSAPI_NETHSERVER_WEBTOP5 !requiretty
