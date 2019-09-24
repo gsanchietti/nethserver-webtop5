@@ -1,19 +1,49 @@
+#!/bin/bash
 #
-# Test access to WebTop 5
-# The script takes 3 arguments:
-# - username
-# - password
-# - url
+# Check WebTop status by trying a login.
+# In case of error the script can:
+# - send a notification to a Mattermost webhook (it should work also with Slack)
+# - send a mail noticiation
+# - restart the tomcat instance (it should take around 30 seconds for a full restart)
 #
 # The script exit 0 on success, 1 on error.
 #
+# You need to configure at least the following options:
+#
+# - USER: user for webtop login (it's better to create ad-hoc one)
+# - PASSWORD: user password for webtop login (choose a strong one)
+# - BASE_URL: webtop URL (use https)
+#
+# Optional configuration:
+#
+# - ACTION: action to execute on error, default is to "restart". If empty, no action will be taken.
+# - MAIL_TO: one or more comma-separeted mail address to notify the error. If empty, no mail will be sent.
+# - WEBHOOK: Mattermost webhook to notify on error. If empty, no Mattermost notification will be sent.
+#
+#
+# Example:
+# USER="nethesis"
+# PASSWORD="Nethesis,1234"
+# BASE_URL="https://mail.myserver.com/webtop"
+# MAIL_TO="first@mysever.com,second@myserver.com"
+# ACTION="restart"
+# WEBHOOK="https://mattermost.mysever.com/hooks/xxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-USER=$1
-PASSWORD=$2
-BASE_URL=$3
 
-if [ -z "$1" ] || [ -z "$2" ] ||  [ -z "$3" ]; then
-    echo "Usage: $0 <user> <password> <url>"
+################### Configure the script here ###################
+
+USER=
+PASSWORD=
+BASE_URL=
+MAIL_TO=
+ACTION="restart"
+WEBHOOK=
+
+######################################################################
+################### Do not edit after this line !! ###################
+
+if [ -z "$USER" ] || [ -z "$PASSWORD" ] ||  [ -z "$BASE_URL" ]; then
+    echo "Set at least USER, PASSWORD and BASE_URL"
     exit 2
 fi
 
@@ -31,8 +61,24 @@ data=$(curl -k -sL $BASE_URL"/login" -H "Cookie: JSESSIONID=$JSESSIONID" --data 
 # Extract the sessionid: if it's empty, login has failed
 sessionid=$(echo $data| grep -Po '\{"sessionId":"\K[^"]*')
 
+# If session is empty, generate the alert and take action
 if [ -z "$sessionid" ]; then
-    echo "[ERROR] USER: $USER URL: $BASE_URL"
+    msg="**ALERT**: $BASE_URL restarted (User: $USER - Password: $PASSWORD)"
+
+    # Send Mattermost notification
+    if [ ! -z "$WEBHOOK" ]; then
+        curl -s -X POST -H 'Content-Type: application/json' -d "{\"text\": \"$msg\"}" $WEBHOOK >/dev/null
+    fi
+
+    # Send mail notification
+    if [ ! -z "$MAIL_TO " ]; then
+       echo $msg | mail -r no-reply@$(hostname -d) -s "WebTop alert: $BASE_URL" $MAIL_TO
+    fi
+
+    # Restart tomcat instance
+    if [ ! -z "$ACTION" ]; then
+        systemctl $ACTION tomcat8@webtop
+    fi
     exit 1
 else
     exit 0
